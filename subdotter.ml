@@ -259,6 +259,10 @@ module GV = struct (* {{{ *)
 
 end (* }}} *)
 
+let add_attrs attrmap id attrs =
+  let existing = Option.value (GV.NodeMap.find_opt id attrmap) ~default:[] in
+  GV.NodeMap.add id (List.rev_append attrs existing) attrmap
+
 let add_node s =
   nodes := Nodes.add (GV.make_id s) !nodes
 
@@ -342,8 +346,13 @@ let is_connected_in g =
   if !verbose > 0 then eprintf "done (%e seconds)@." (Sys.time () -. start_time);
   fun n1 n2 -> G.mem_edge g' n1 n2
 
+let other_node_attr = [
+    GV.make_attr "color" "darkgray" @
+    GV.make_attr "fontcolor" "darkgray"
+  ]
+
 let main sin fout nodes =
-  let g, attrs0 = GV.parse sin in
+  let g, attrs = GV.parse sin in
   if !verbose > 0 then
     eprintf "input graph: %d nodes/%d edges@." (G.nb_vertex g) (G.nb_edges g);
   if Nodes.is_empty nodes then eprintf "warning: no nodes specified@.";
@@ -362,9 +371,12 @@ let main sin fout nodes =
       g';
   if !verbose > 0 then
     eprintf "output graph: %d nodes/%d edges@." (G.nb_vertex g') (G.nb_edges g');
+  let attrs' = Nodes.fold (fun v cattrs ->
+      add_attrs cattrs v other_node_attr) !other_nodes attrs
+  in
   Format.(
     pp_open_vbox fout 0;
-    GV.print_dot ~node_attrs:attrs0 fout g';
+    GV.print_dot ~node_attrs:attrs' fout g';
     pp_close_box fout ()
   )
 
