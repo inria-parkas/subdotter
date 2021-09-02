@@ -40,7 +40,7 @@ let other_nodes = ref Nodes.empty
 let include_scc = ref false
 let include_successors = ref 0
 let include_predecessors = ref 0
-let include_external_edges = ref true
+let include_external_edges = ref false
 
 let set_input_file s =
   input_file := Some s
@@ -418,9 +418,9 @@ let _ =
         Arg.Set_int include_predecessors,
         "<int> Include secondary nodes from a bounded number of predecessors";
 
-        "--no-external-edges",
-        Arg.Clear include_external_edges,
-        "Do not add edges to represent paths through other nodes";
+        "--external-edges",
+        Arg.Set include_external_edges,
+        "Add edges to represent paths through other nodes";
     ]
     add_node usage_msg;
     main (make_input !input_file) (make_output !output_file) !nodes
