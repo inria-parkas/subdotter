@@ -73,7 +73,7 @@ let prefer_right _ vl vr =
 
 (** Graphs *)
 
-module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
+module G = Graph.Imperative.Digraph.ConcreteBidirectionalLabeled
   (struct
     type t = Graph.Dot_ast.node_id
     let compare = Stdlib.compare
@@ -86,10 +86,10 @@ module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
     let default = []
    end)
 
-module GB = Graph.Builder.P(G)
+module GB = Graph.Builder.I(G)
 module Components = Graph.Components.Make(G)
 module Emap = Graph.Gmap.Edge(G)(struct include GB.G include GB end)
-module Oper = Graph.Oper.P(G)
+module Oper = Graph.Oper.I(G)
 
 module AttrOrdered =
   struct
@@ -161,13 +161,7 @@ module GV = struct (* {{{ *)
   (* hack to capture node attributes *)
   let attr_map = Hashtbl.create 1000
 
-  module Parse = Graph.Dot.Parse
-                    (struct
-                      module G = G
-                      include G
-                      let copy x = x
-                      let empty () = empty
-                    end)
+  module Parse = Graph.Dot.Parse (Graph.Builder.I (G))
                     (struct
                       let node n attr =
                         Hashtbl.add attr_map n attr; n
@@ -271,14 +265,16 @@ let add_other_node s =
 
 (** Core algorithms *)
 
-let add_vertexes = Nodes.fold (fun v g -> G.add_vertex g v)
+let add_vertexes ns g = Nodes.iter (fun v -> G.add_vertex g v) ns
 
 (* project out the subgraph containing just the vertices in vs, i.e. G[vs]. *)
 let subgraph g vs =
   let in_graph e =
     if Nodes.mem (G.E.src e) vs && Nodes.mem (G.E.dst e) vs then Some e else None
   in
-  add_vertexes vs (Emap.filter_map in_graph g)
+  let g' = Emap.filter_map in_graph g in
+  add_vertexes vs g';
+  g'
 
 let others_from_sccs g nodes =
   let f other scc =
@@ -303,16 +299,15 @@ let external_edge_attrs = [
 
 let add_external_edges ~connected_in_original ~connected_in_projection g =
   let innerfold v1 =
-    let check_edge v2 g0 =
+    let check_edge v2 =
       if not (G.V.equal v1 v2)
          && connected_in_original v1 v2
          && not (connected_in_projection v1 v2)
-      then G.add_edge_e g0 (v1, external_edge_attrs, v2)
-      else g0
+      then G.add_edge_e g (v1, external_edge_attrs, v2)
     in
-    G.fold_vertex check_edge g
+    G.iter_vertex check_edge g
   in
-  G.fold_vertex innerfold g g
+  G.iter_vertex innerfold g
 
 (** Main functions *)
 
@@ -337,27 +332,26 @@ let is_connected_in g =
   if !verbose > 0 then
     eprintf "calculating transitive closure (%d nodes/%d edges)...@."
       (G.nb_vertex g) (G.nb_edges g);
-  let g' = Oper.transitive_closure ~reflexive:false g in
+  let g' = Oper.add_transitive_closure ~reflexive:false (G.copy g) in
   if !verbose > 0 then eprintf "done (%e seconds)@." (Sys.time () -. start_time);
   fun n1 n2 -> G.mem_edge g' n1 n2
 
 let main sin fout nodes =
-  let g0, attrs0 = GV.parse sin in
+  let g, attrs0 = GV.parse sin in
   if Nodes.is_empty nodes then eprintf "warning: no nodes specified@.";
   if !include_scc then
     other_nodes :=
       Nodes.union
-        (Nodes.union !other_nodes (others_from_sccs g0 nodes))
-        (others_from_neighbourhood !include_neighbours g0 nodes);
-  let g1 = subgraph g0 (Nodes.union nodes !other_nodes) in
-  let g2 = add_external_edges
-      ~connected_in_original:(is_connected_in g0)
-      ~connected_in_projection:(is_connected_in g1)
-      g1
-  in
+        (Nodes.union !other_nodes (others_from_sccs g nodes))
+        (others_from_neighbourhood !include_neighbours g nodes);
+  let g' = subgraph g (Nodes.union nodes !other_nodes) in
+  add_external_edges
+    ~connected_in_original:(is_connected_in g)
+    ~connected_in_projection:(is_connected_in g')
+    g';
   Format.(
     pp_open_vbox fout 0;
-    GV.print_dot ~node_attrs:attrs0 fout g2;
+    GV.print_dot ~node_attrs:attrs0 fout g';
     pp_close_box fout ()
   )
 
