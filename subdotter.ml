@@ -20,7 +20,7 @@ let pp_version_string ppf () =
 let show_version () =
   Format.printf "%a@," pp_version_string ()
 
-let usage_msg = "usage: subdotter [options] [files]"
+let usage_msg = "usage: subdotter -i <file.dot> [options] [nodes]"
 
 module Nodes = Set.Make
   (struct
