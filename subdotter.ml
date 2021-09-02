@@ -53,25 +53,8 @@ let set_output_file s =
 let printf = Format.printf
 let eprintf = Format.printf
 
-let with_out_channel out f =
-  let r = try f out with e -> (close_out out; raise e) in
-  close_out out;
-  r
-
-let with_added_formatter f out = f (Format.formatter_of_out_channel out)
-
-let with_out_file fname f = with_out_channel (Stdlib.open_out fname) f
-
-let with_out_formatter fname f =
-  with_out_channel (Stdlib.open_out fname) (with_added_formatter f)
-
 let pp_semi p ()  = Format.(pp_print_char p ';'; pp_print_space p ())
 let pp_comma p ()  = Format.(pp_print_char p ','; pp_print_space p ())
-
-let prefer_right _ vl vr =
-  match vl, vr with
-  | _, Some x -> Some x
-  | vr, _ -> vr
 
 (** Graphs *)
 
@@ -92,48 +75,6 @@ module GB = Graph.Builder.I(G)
 module Components = Graph.Components.Make(G)
 module Emap = Graph.Gmap.Edge(G)(struct include GB.G include GB end)
 module Oper = Graph.Oper.I(G)
-
-module AttrOrdered =
-  struct
-    type t = Graph.Dot_ast.id * Graph.Dot_ast.id option
-    let compare = Stdlib.compare
-  end
-
-let filter_attrs keep =
-  let f atts = match List.filter keep atts with
-               | [] -> None
-               | xs -> Some xs
-  in
-  List.filter_map f
-
-(* Sets of attributes *)
-module AttrSet = struct (* {{{ *)
-  include Set.Make(AttrOrdered)
-
-  let of_attrlist = List.fold_left (List.fold_left (fun s nv -> add nv s)) empty
-
-  let to_attrlist s = [elements s]
-
-  let partition_attrs keep attss = List.(split (map (partition keep) attss))
-
-end (* }}} *)
-
-(* Map sets of attributes to arbitrary values. *)
-module AttrSetMap = struct (* {{{ *)
-  include Map.Make (struct
-      type t = G.vertex * AttrSet.t * G.vertex
-
-      let compare (src1, s1, dst1) (src2, s2, dst2) =
-        match G.V.compare src1 src2 with
-        | 0 -> (match G.V.compare dst1 dst2 with
-                | 0 -> AttrSet.(compare s1 s2)
-                | r -> r)
-        | r -> r
-     end)
-
-  let add_with_cons k v =
-    update k (function None -> Some [v] | Some vs -> Some (v::vs))
-end (* }}} *)
 
 (** Graphviz interface *)
 
