@@ -40,9 +40,9 @@ Options
 * `--predecessors <int>` : include as secondary nodes any that can be 
   reached in the given number of backward steps from the given nodes.
 
-* `--no-external-edges` : do not add extra edges to represent paths between 
-  extracted nodes that pass via unextracted ones. This makes the calculation 
-  much faster since there is no need to calculate transitive closures.
+* `--external-edges` : add extra edges to represent paths between extracted 
+  nodes that pass via unextracted ones. This makes the calculation much 
+  slower since it is necessary to calculate transitive closures.
 
 Building
 --------
