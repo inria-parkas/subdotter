@@ -38,7 +38,8 @@ let nodes = ref Nodes.empty
 let other_nodes = ref Nodes.empty
 
 let include_scc = ref false
-let include_neighbours = ref 0
+let include_successors = ref 0
+let include_predecessors = ref 0
 let include_external_edges = ref true
 
 let set_input_file s =
@@ -287,12 +288,16 @@ let others_from_sccs g nodes =
   let sccs = Array.map Nodes.of_list (Components.scc_array g) in
   Array.fold_left f !other_nodes sccs
 
-let others_from_neighbourhood k g nodes =
+let others_from_neighbourhood fold_neighbours k g nodes =
   let rec bdfs n v (visited, other) =
-    if n = 0 || Nodes.mem v visited then (visited, other)
-    else G.fold_succ (bdfs (n - 1)) g v (Nodes.add v visited, Nodes.add v other)
+    if n = 0 || (n < k && Nodes.mem v visited) then (visited, other)
+    else fold_neighbours (bdfs (n - 1)) g v
+          (Nodes.add v visited, if n < k then Nodes.add v other else other)
   in
   snd (Nodes.fold (bdfs k) nodes (nodes, Nodes.empty))
+
+let others_from_successors = others_from_neighbourhood G.fold_succ
+let others_from_predecessors = others_from_neighbourhood G.fold_pred
 
 let external_edge_attrs = [
     GV.make_attr "color" "lightgray"
@@ -342,11 +347,13 @@ let main sin fout nodes =
   if !verbose > 0 then
     eprintf "input graph: %d nodes/%d edges@." (G.nb_vertex g) (G.nb_edges g);
   if Nodes.is_empty nodes then eprintf "warning: no nodes specified@.";
-  if !include_scc then
-    other_nodes :=
-      Nodes.union
-        (Nodes.union !other_nodes (others_from_sccs g nodes))
-        (others_from_neighbourhood !include_neighbours g nodes);
+  other_nodes :=
+    (if !include_scc
+     then Nodes.union (Nodes.union !other_nodes (others_from_sccs g nodes))
+     else Fun.id)
+    (Nodes.union
+       (others_from_successors !include_successors g nodes)
+       (others_from_predecessors !include_predecessors g nodes));
   let g' = subgraph g (Nodes.union nodes !other_nodes) in
   if !include_external_edges then
     add_external_edges
@@ -391,9 +398,13 @@ let _ =
         Arg.Set include_scc,
         "Include secondary nodes from strongly connected components";
 
-        "--neighbours",
-        Arg.Set_int include_neighbours,
-        "<int> Include secondary nodes from a bounded neighbourhood";
+        "--successors",
+        Arg.Set_int include_successors,
+        "<int> Include secondary nodes from a bounded number of successsors";
+
+        "--predecessors",
+        Arg.Set_int include_predecessors,
+        "<int> Include secondary nodes from a bounded number of predecessors";
 
         "--no-external-edges",
         Arg.Clear include_external_edges,

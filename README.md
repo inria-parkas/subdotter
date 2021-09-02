@@ -34,8 +34,11 @@ Options
 * `--include-scc` : include as secondary nodes any others in the same 
   strongly connected components as the given nodes.
 
-* `--neighbours <int>` : include as secondary nodes any that can be reached 
+* `--successors <int>` : include as secondary nodes any that can be reached 
   in the given number of steps from the given nodes.
+
+* `--predecessors <int>` : include as secondary nodes any that can be 
+  reached in the given number of backward steps from the given nodes.
 
 * `--no-external-edges` : do not add extra edges to represent paths between 
   extracted nodes that pass via unextracted ones. This makes the calculation 
