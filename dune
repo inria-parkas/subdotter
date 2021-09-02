@@ -1,0 +1,8 @@
+
+(executable
+  (name subdotter)
+  (public_name subdotter)
+  (libraries ocamlgraph dune-build-info str)
+  (modules subdotter)
+  (promote (until-clean)))
+
