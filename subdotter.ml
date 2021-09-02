@@ -39,6 +39,7 @@ let other_nodes = ref Nodes.empty
 
 let include_scc = ref false
 let include_neighbours = ref 0
+let include_external_edges = ref true
 
 let set_input_file s =
   input_file := Some s
@@ -338,6 +339,8 @@ let is_connected_in g =
 
 let main sin fout nodes =
   let g, attrs0 = GV.parse sin in
+  if !verbose > 0 then
+    eprintf "input graph: %d nodes/%d edges@." (G.nb_vertex g) (G.nb_edges g);
   if Nodes.is_empty nodes then eprintf "warning: no nodes specified@.";
   if !include_scc then
     other_nodes :=
@@ -345,10 +348,13 @@ let main sin fout nodes =
         (Nodes.union !other_nodes (others_from_sccs g nodes))
         (others_from_neighbourhood !include_neighbours g nodes);
   let g' = subgraph g (Nodes.union nodes !other_nodes) in
-  add_external_edges
-    ~connected_in_original:(is_connected_in g)
-    ~connected_in_projection:(is_connected_in g')
-    g';
+  if !include_external_edges then
+    add_external_edges
+      ~connected_in_original:(is_connected_in g)
+      ~connected_in_projection:(is_connected_in g')
+      g';
+  if !verbose > 0 then
+    eprintf "output graph: %d nodes/%d edges@." (G.nb_vertex g') (G.nb_edges g');
   Format.(
     pp_open_vbox fout 0;
     GV.print_dot ~node_attrs:attrs0 fout g';
@@ -387,7 +393,11 @@ let _ =
 
         "--neighbours",
         Arg.Set_int include_neighbours,
-        "<int> Include secondary nodes from a bounded neighbourhood"
+        "<int> Include secondary nodes from a bounded neighbourhood";
+
+        "--no-external-edges",
+        Arg.Clear include_external_edges,
+        "Do not add edges to represent paths through other nodes";
     ]
     add_node usage_msg;
     main (make_input !input_file) (make_output !output_file) !nodes

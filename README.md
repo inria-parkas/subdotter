@@ -37,6 +37,10 @@ Options
 * `--neighbours <int>` : include as secondary nodes any that can be reached 
   in the given number of steps from the given nodes.
 
+* `--no-external-edges` : do not add extra edges to represent paths between 
+  extracted nodes that pass via unextracted ones. This makes the calculation 
+  much faster since there is no need to calculate transitive closures.
+
 Building
 --------
 
