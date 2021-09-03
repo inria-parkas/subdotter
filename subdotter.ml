@@ -30,7 +30,7 @@ module Nodes = Set.Make
 
 (** Global settings *)
 
-let verbose = ref 0
+let verbose = ref 1
 
 let input_file = ref None
 let output_file = ref None
@@ -333,7 +333,11 @@ let _ =
         "-v",
           Arg.Unit (fun () -> Printexc.record_backtrace true;
                               incr verbose),
-          " Activate verbose mode";
+          " Be more verbose";
+
+        "-q",
+          Arg.Unit (fun () -> decr verbose),
+          " Be less verbose";
 
         "-i",
           Arg.String set_input_file,
